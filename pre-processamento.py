@@ -6,61 +6,72 @@ O foco será no primeiro turno das eleições (outubro de 2018) para reduzir a c
 
 import pandas as pd
 import os
-from datetime import datetime
 import glob
 import csv
 
-# Define o diretorio onde os arquivos .csv estao localizados
+# Define o diretório onde os arquivos .csv estão localizados
 diretorio_dados = "/home/israel/Downloads/Instagram Data/smartdata_ig/data/BR/"
 
-# Define a lista de arquivos .csv para o periodo de outubro de 2018
+# Define a lista de arquivos .csv para outubro de 2018
 arquivos_outubro_2018 = glob.glob(os.path.join(diretorio_dados, "2018-10*.csv"))
 
-# Funçao para converter timestamps para datetime
-def converter_timestamp_para_datetime(timestamp):
+# Função para converter timestamps ou datetimes
+def converter_data(valor):
     try:
-        return pd.to_datetime(timestamp, unit='s')
+        # Se for timestamp numérico (UNIX)
+        if isinstance(valor, (int, float)) or valor.isdigit():
+            return pd.to_datetime(int(valor), unit='s')
+        # Se for string no formato datetime
+        return pd.to_datetime(valor, errors='coerce')
     except:
-        return pd.NaT # retorna NaT para valores invalidos
-    
-def pre_processar_chunk(chunk):
+        return pd.NaT
 
+def pre_processar_chunk(chunk):
     # Converte colunas de data
-    chunk['created_time'] = chunk['created_time'].apply(converter_timestamp_para_datetime)
-    chunk['created_time_comment'] = chunk['created_time_comment'].apply(converter_timestamp_para_datetime)
+    chunk['created_time'] = chunk['created_time'].apply(converter_data)
+    chunk['created_time_comment'] = chunk['created_time_comment'].apply(converter_data)
 
     # Remove duplicatas
     chunk = chunk.drop_duplicates()
 
-    # Trata valores ausentes (substituir por NaN ou remover)
+    # Substitui strings vazias por NaN
     chunk = chunk.replace('', pd.NA)
-    chunk = chunk.dropna(subset=['created_time', 'media_owner_id', 'comment_id'], how='any') # Remove linhas com valores ausentes em colunas criticas
+
+    # Remove apenas linhas sem created_time ou media_owner_id
+    chunk = chunk.dropna(subset=['created_time', 'media_owner_id'], how='any')
 
     return chunk
 
 # Lista para armazenar os chunks processados
 dados_processados = []
 
-# Tamanho do chunk para gerenciar memoria (monitorar com o htop pra ver se dar pra liberar mais)
+# Tamanho do chunk e máximo de chunks para testes
 tamanho_chunk = 5000
+max_chunks = 10
 
-# itera sobre os arquikvos de outubro de 2018
+# Itera sobre os arquivos de outubro de 2018
+chunk_count = 0
 for arquivo in arquivos_outubro_2018:
     print(f"Processando arquivo: {arquivo}")
     try:
-        # Le o arquivos em chunks com aplicando os parametros abaixo
         for chunk in pd.read_csv(
             arquivo,
             chunksize=tamanho_chunk,
             encoding='utf-8',
-            quoting=csv.QUOTE_ALL, # Força aspas "" em todos os campos
-            on_bad_lines='skip', # Pula linhas malformadas
-            low_memory=False, # Garante que erros nao interrompam o processamento
-            escapechar='\\', # Para lidar com virgulas ou aspas em campos de texto
-            doublequote=True # Trata aspas duplas corretamente
+            quoting=csv.QUOTE_ALL,
+            on_bad_lines='skip',
+            low_memory=False,
+            escapechar='\\',
+            doublequote=True
         ):
             chunk_processado = pre_processar_chunk(chunk)
+            print(f"Chunk {chunk_count + 1}: {len(chunk_processado)} linhas processadas")
             dados_processados.append(chunk_processado)
+            chunk_count += 1
+            if chunk_count >= max_chunks:
+                break
+        if chunk_count >= max_chunks:
+            break
     except Exception as error:
         print(f"Erro ao processar {arquivo}: {str(error)}")
         continue
@@ -71,8 +82,9 @@ if dados_processados:
     caminho_raiz = os.path.dirname(os.path.abspath(__file__))
     caminho_saida = os.path.join(caminho_raiz, "dados_pre_processados_outubro_2018.csv")
     dados_completos.to_csv(caminho_saida, index=False)
-    print(f"Dados pre-processados salvos em: {caminho_saida}")
-    print("\nInformaçoes do conjunto de dados processados:")
+    print(f"Dados pré-processados salvos em: {caminho_saida}")
+    print("\nInformações do conjunto de dados processados:")
     print(dados_completos.info())
+    print(f"\nValores nulos por coluna:\n{dados_completos.isna().sum()}")
 else:
     print("Nenhum dado processado. Verifique os arquivos de entrada.")
