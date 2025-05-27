@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 import csv
-import subprocess
 
 # Define o caminho do arquivo pré-processado
 caminho_arquivo = "/home/israel/vscode/DoE - Atividade 1/dados_pre_processados_outubro_2018.csv"
@@ -14,9 +13,8 @@ if not os.path.exists(caminho_arquivo):
     print(f"Erro: Arquivo '{caminho_arquivo}' não encontrado. Reexecute o script de pré-processamento.")
     exit()
 
-# Define o tamanho do chunk e máximo de chunks
-tamanho_chunk = 5000
-max_chunks = 10
+# Define o tamanho do chunk
+tamanho_chunk = 10000
 
 # Inicializa séries para contagens por hora
 serie_posts = pd.Series(dtype=int)
@@ -31,29 +29,24 @@ def processar_chunk_temporal(chunk, chunk_num):
     chunk['created_time'] = pd.to_datetime(chunk['created_time'], errors='coerce')
     chunk['created_time_comment'] = pd.to_datetime(chunk['created_time_comment'], errors='coerce')
     
-    # Filtra apenas datas de outubro de 2018
-    mascara_oct = (chunk['created_time'].dt.month == 10) & (chunk['created_time'].dt.year == 2018)
-    chunk = chunk[mascara_oct]
-    if not chunk.empty:
-        # Extrai hora completa (data + hora)
-        chunk['hora_post'] = chunk['created_time'].dt.floor('h')
-        chunk['hora_comentario'] = chunk['created_time_comment'].dt.floor('h')
-        
-        # Conta publicações e comentários por hora
-        posts = chunk.groupby('hora_post').size()
-        comentarios = chunk.groupby('hora_comentario').size() if not chunk['created_time_comment'].isna().all() else pd.Series(dtype=int)
-        
-        print(f"Publicações por hora: {len(posts)}, Comentários por hora: {len(comentarios)}")
-        return posts, comentarios
-    return pd.Series(dtype=int), pd.Series(dtype=int)
+    # Extrai hora completa (data + hora)
+    chunk['hora_post'] = chunk['created_time'].dt.floor('h')
+    chunk['hora_comentario'] = chunk['created_time_comment'].dt.floor('h')
+    
+    # Conta publicações (usando short_code único por hora)
+    posts = chunk.drop_duplicates(subset=['short_code']).groupby('hora_post').size()
+    comentarios = chunk.groupby('hora_comentario').size() if not chunk['created_time_comment'].isna().all() else pd.Series(dtype=int)
+    
+    print(f"Publicações por hora: {len(posts)}, Comentários por hora: {len(comentarios)}")
+    return posts, comentarios
 
-# Lê até max_chunks
+# Lê os chunks
 try:
     chunk_count = 0
     for chunk in pd.read_csv(
         caminho_arquivo,
         chunksize=tamanho_chunk,
-        usecols=['created_time', 'created_time_comment'],
+        usecols=['created_time', 'created_time_comment', 'short_code'],
         encoding='utf-8',
         quoting=csv.QUOTE_ALL,
         on_bad_lines='skip',
@@ -65,8 +58,6 @@ try:
         posts, comentarios = processar_chunk_temporal(chunk, chunk_count)
         serie_posts = serie_posts.add(posts, fill_value=0)
         serie_comentarios = serie_comentarios.add(comentarios, fill_value=0)
-        if chunk_count >= max_chunks:
-            break
 except Exception as e:
     print(f"Erro ao processar o subconjunto: {str(e)}")
     exit()
@@ -80,9 +71,9 @@ if serie_posts.empty:
     print("Erro: Subconjunto não contém dados suficientes para publicações. Verifique os dados brutos.")
     exit()
 
-# Reindexa para garantir continuidade, restrito a outubro de 2018
-data_inicio = pd.Timestamp('2018-10-01 00:00:00')
-data_fim = pd.Timestamp('2018-10-31 23:00:00')
+# Reindexa para garantir continuidade, restrito a 7 de outubro de 2018
+data_inicio = pd.Timestamp('2018-10-07 00:00:00')
+data_fim = pd.Timestamp('2018-10-07 23:00:00')
 indice_horas = pd.date_range(start=data_inicio, end=data_fim, freq='h')
 serie_posts = serie_posts.reindex(indice_horas, fill_value=0)
 serie_comentarios = serie_comentarios.reindex(indice_horas, fill_value=0)
@@ -110,43 +101,71 @@ if not serie_comentarios.empty:
 serie_posts_sazonal = serie_posts.groupby(serie_posts.index.hour).mean()
 serie_comentarios_sazonal = serie_comentarios.groupby(serie_comentarios.index.hour).mean() if not serie_comentarios.empty else pd.Series()
 
+# Adiciona log para inspeção
+print("\nSazonalidade Publicações (Média por Hora do Dia):")
+print(serie_posts_sazonal)
+print("\nSazonalidade Comentários (Média por Hora do Dia):")
+print(serie_comentarios_sazonal)
+
 # Gera os gráficos e salva como PNG temporariamente
 # Gráfico 1: Séries Temporais de Publicações
-plt.figure(figsize=(15, 5))
-plt.plot(serie_posts.index, serie_posts, label='Publicações por Hora', color='blue', alpha=0.5)
-plt.plot(media_movel_posts.index, media_movel_posts, label=f'Média Móvel ({janela_media_movel}h)', color='red')
-plt.axhline(y=limiar_alta_posts, color='green', linestyle='--', label='Limiar Alta Atividade')
-plt.axhline(y=limiar_baixa_posts, color='orange', linestyle='--', label='Limiar Baixa Atividade')
-plt.title('Série Temporal de Publicações por Hora')
-plt.xlabel('Data e Hora')
+plt.figure(figsize=(12, 9))  # Proporção 4:3
+plt.plot(serie_posts.index.strftime('%H:%M'), serie_posts, label='Publicações por Hora', color='blue', alpha=0.5)
+plt.plot(media_movel_posts.index.strftime('%H:%M'), media_movel_posts, label=f'Média Móvel ({janela_media_movel}h)', color='red')
+plt.axhline(y=limiar_alta_posts, color='green', linestyle='--', label='Limiar Alta Atividade (Pub.)')
+plt.axhline(y=limiar_baixa_posts, color='orange', linestyle='--', label='Limiar Baixa Atividade (Pub.)')
+plt.title('Série Temporal de Publicações por Hora (7 de Outubro de 2018)')
+plt.xlabel('Hora do Dia')
 plt.ylabel('Número de Publicações')
 plt.legend()
+plt.tight_layout()
 plt.savefig('serie_temporal_publicacoes.png')
 plt.close()
 
 # Gráfico 2: Séries Temporais de Comentários
 if not serie_comentarios.empty:
-    plt.figure(figsize=(15, 5))
-    plt.plot(serie_comentarios.index, serie_comentarios, label='Comentários por Hora', color='purple', alpha=0.5)
-    plt.plot(media_movel_comentarios.index, media_movel_comentarios, label=f'Média Móvel ({janela_media_movel}h)', color='red')
-    plt.axhline(y=limiar_alta_comentarios, color='green', linestyle='--', label='Limiar Alta Atividade')
-    plt.axhline(y=limiar_baixa_comentarios, color='orange', linestyle='--', label='Limiar Baixa Atividade')
-    plt.title('Série Temporal de Comentários por Hora')
-    plt.xlabel('Data e Hora')
+    plt.figure(figsize=(12, 9))  # Proporção 4:3
+    plt.plot(serie_comentarios.index.strftime('%H:%M'), serie_comentarios, label='Comentários por Hora', color='purple', alpha=0.5)
+    plt.plot(media_movel_comentarios.index.strftime('%H:%M'), media_movel_comentarios, label=f'Média Móvel ({janela_media_movel}h)', color='red')
+    plt.axhline(y=limiar_alta_comentarios, color='green', linestyle='--', label='Limiar Alta Atividade (Com.)')
+    plt.axhline(y=limiar_baixa_comentarios, color='orange', linestyle='--', label='Limiar Baixa Atividade (Com.)')
+    plt.title('Série Temporal de Comentários por Hora (7 de Outubro de 2018)')
+    plt.xlabel('Hora do Dia')
     plt.ylabel('Número de Comentários')
     plt.legend()
+    plt.tight_layout()
     plt.savefig('serie_temporal_comentarios.png')
     plt.close()
 
 # Gráfico 3: Sazonalidade (Média por Hora do Dia)
-plt.figure(figsize=(15, 5))
-plt.plot(serie_posts_sazonal.index, serie_posts_sazonal, label='Publicações (Média por Hora do Dia)', color='blue')
-if not serie_comentarios_sazonal.empty:
-    plt.plot(serie_comentarios_sazonal.index, serie_comentarios_sazonal, label='Comentários (Média por Hora do Dia)', color='purple')
-plt.title('Sazonalidade - Média por Hora do Dia')
-plt.xlabel('Hora do Dia')
-plt.ylabel('Média de Atividade')
-plt.legend()
+fig, ax1 = plt.subplots(figsize=(12, 9))  # Proporção 4:3
+horas = range(24)  # Índices de 0 a 23
+
+# Eixo principal para publicações
+ax1.plot(horas, serie_posts_sazonal.values, label='Publicações (Média por Hora)', color='blue')
+ax1.axhline(y=limiar_alta_posts, color='green', linestyle='--', label='Limiar Alta (Pub.)')
+ax1.axhline(y=limiar_baixa_posts, color='orange', linestyle='--', label='Limiar Baixa (Pub.)')
+ax1.set_title('Sazonalidade - Média por Hora do Dia (7 de Outubro 2018)')
+ax1.set_xlabel('Hora do Dia')
+ax1.set_ylabel('Média de Publicações', color='blue')
+ax1.set_xticks(range(0, 24, 1))  # Mostra todas as horas de 0 a 23
+ax1.tick_params(axis='y', labelcolor='blue')
+ax1.set_ylim(0, 250)  # Escala para publicações (máximo 240)
+
+# Eixo secundário para comentários
+ax2 = ax1.twinx()
+ax2.plot(horas, serie_comentarios_sazonal.values, label='Comentários (Média por Hora)', color='purple')
+ax2.axhline(y=limiar_alta_comentarios, color='green', linestyle='-.', label='Limiar Alta (Com.)')
+ax2.axhline(y=limiar_baixa_comentarios, color='orange', linestyle='-.', label='Limiar Baixa (Com.)')
+ax2.set_ylabel('Média de Comentários', color='purple')
+ax2.tick_params(axis='y', labelcolor='purple')
+ax2.set_ylim(0, 50000)  # Escala para comentários (máximo 48.415)
+
+# Ajuste da legenda combinada
+lines1, labels1 = ax1.get_legend_handles_labels()
+lines2, labels2 = ax2.get_legend_handles_labels()
+ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
+plt.tight_layout()
 plt.savefig('sazonalidade_hora_dia.png')
 plt.close()
 
@@ -180,7 +199,7 @@ latex_content = r"""
 
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[C]{Análise Temporal - Instagram Outubro 2018}
+\fancyhead[C]{Análise Temporal - Instagram 7 de Outubro 2018}
 \fancyfoot[C]{\thepage}
 
 \titleformat{\section}{\normalfont\Large\bfseries}{\thesection}{1em}{}
@@ -191,7 +210,7 @@ latex_content = r"""
 \begin{titlepage}
     \centering
     \vspace*{2cm}
-    {\Huge\bfseries Análise Temporal de Publicações e Comentários no Instagram\\Outubro 2018\par}
+    {\Huge\bfseries Análise Temporal de Publicações e Comentários no Instagram\\7 de Outubro 2018\par}
     \vspace{1cm}
     {\Large Israel - DoE Atividade 1\par}
     \vspace{2cm}

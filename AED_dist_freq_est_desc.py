@@ -15,9 +15,8 @@ if not os.path.exists(caminho_arquivo):
     print(f"Erro: Arquivo '{caminho_arquivo}' não encontrado. Reexecute o script de pré-processamento.")
     exit()
 
-# Define o tamanho do chunk e máximo de chunks
-tamanho_chunk = 5000
-max_chunks = 10
+# Define o tamanho do chunk
+tamanho_chunk = 10000
 
 # Inicializa séries para contagens por hora
 posts_por_hora = pd.Series(dtype=int)
@@ -32,24 +31,29 @@ def processar_chunk(chunk, chunk_num):
     chunk['created_time'] = pd.to_datetime(chunk['created_time'], errors='coerce')
     chunk['created_time_comment'] = pd.to_datetime(chunk['created_time_comment'], errors='coerce')
     
+    # Filtra created_time_comment para 7 de outubro de 2018
+    data_alvo = pd.to_datetime('2018-10-07')
+    mascara_data_coment = chunk['created_time_comment'].dt.date == data_alvo.date()
+    chunk = chunk[mascara_data_coment | chunk['created_time_comment'].isna()]
+    
     # Extrai hora
     chunk['hora_post'] = chunk['created_time'].dt.floor('h')
     chunk['hora_comentario'] = chunk['created_time_comment'].dt.floor('h')
     
-    # Conta publicações e comentários por hora
-    posts = chunk.groupby('hora_post').size()
+    # Conta publicações (usando short_code único por hora)
+    posts = chunk.drop_duplicates(subset=['short_code']).groupby('hora_post').size()
     comentarios = chunk.groupby('hora_comentario').size() if not chunk['created_time_comment'].isna().all() else pd.Series(dtype=int)
     
     print(f"Publicações por hora: {len(posts)}, Comentários por hora: {len(comentarios)}")
     return posts, comentarios
 
-# Lê até max_chunks
+# Lê os chunks
 try:
     chunk_count = 0
     for chunk in pd.read_csv(
         caminho_arquivo,
         chunksize=tamanho_chunk,
-        usecols=['created_time', 'created_time_comment'],
+        usecols=['created_time', 'created_time_comment', 'short_code'],
         encoding='utf-8',
         quoting=csv.QUOTE_ALL,
         on_bad_lines='skip',
@@ -61,8 +65,6 @@ try:
         posts, comentarios = processar_chunk(chunk, chunk_count)
         posts_por_hora = posts_por_hora.add(posts, fill_value=0)
         comentarios_por_hora = comentarios_por_hora.add(comentarios, fill_value=0)
-        if chunk_count >= max_chunks:
-            break
 except Exception as e:
     print(f"Erro ao processar o subconjunto: {str(e)}")
     exit()
@@ -111,19 +113,19 @@ if not comentarios_por_hora.empty:
     print(f"Amplitude: {range_comments:.2f}")
 
 # Visualizações
-plt.figure(figsize=(15, 10))
+plt.figure(figsize=(12, 9))  # Proporção 4:3
 
 # Histograma - Publicações
 plt.subplot(2, 2, 1)
 plt.hist(posts_por_hora, bins=10, density=True, alpha=0.7, color='blue')
-plt.title('Histograma - Publicações por Hora (Subconjunto)')
+plt.title('Histograma - Publicações por Hora')
 plt.xlabel('Número de Publicações')
 plt.ylabel('Densidade')
 
 # Box Plot - Publicações
 plt.subplot(2, 2, 2)
 sns.boxplot(data=posts_por_hora, color='green')
-plt.title('Box Plot - Publicações por Hora (Subconjunto)')
+plt.title('Box Plot - Publicações por Hora')
 plt.ylabel('Número de Publicações')
 
 # CDF - Publicações
@@ -131,7 +133,7 @@ plt.subplot(2, 2, 3)
 sorted_posts = np.sort(posts_por_hora)
 cdf = np.arange(1, len(sorted_posts) + 1) / len(sorted_posts)
 plt.plot(sorted_posts, cdf, color='red')
-plt.title('CDF - Publicações por Hora (Subconjunto)')
+plt.title('CDF - Publicações por Hora')
 plt.xlabel('Número de Publicações')
 plt.ylabel('Probabilidade Cumulativa')
 
@@ -139,7 +141,7 @@ plt.ylabel('Probabilidade Cumulativa')
 if not comentarios_por_hora.empty:
     plt.subplot(2, 2, 4)
     plt.hist(comentarios_por_hora, bins=10, density=True, alpha=0.7, color='purple')
-    plt.title('Histograma - Comentários por Hora (Subconjunto)')
+    plt.title('Histograma - Comentários por Hora')
     plt.xlabel('Número de Comentários')
     plt.ylabel('Densidade')
 
@@ -172,7 +174,7 @@ latex_content = r"""
 
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[C]{Análise Exploratória - Instagram Outubro 2018}
+\fancyhead[C]{Análise Exploratória - Instagram 7 de Outubro 2018}
 \fancyfoot[C]{\thepage}
 
 \titleformat{\section}{\normalfont\Large\bfseries}{\thesection}{1em}{}
@@ -183,7 +185,7 @@ latex_content = r"""
 \begin{titlepage}
     \centering
     \vspace*{2cm}
-    {\Huge\bfseries Análise Exploratória de Publicações e Comentários no Instagram\\Outubro 2018\par}
+    {\Huge\bfseries Análise Exploratória de Publicações e Comentários no Instagram\\7 de Outubro 2018\par}
     \vspace{1cm}
     {\Large Israel - DoE Atividade 1\par}
     \vspace{2cm}
