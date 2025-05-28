@@ -32,7 +32,7 @@ def processar_chunk(chunk, chunk_num):
     chunk['created_time_comment'] = pd.to_datetime(chunk['created_time_comment'], errors='coerce')
     
     # Filtra created_time_comment para 7 de outubro de 2018
-    data_alvo = pd.to_datetime('2018-10-07')
+    data_alvo = pd.Timestamp('2018-10-07')
     mascara_data_coment = chunk['created_time_comment'].dt.date == data_alvo.date()
     chunk = chunk[mascara_data_coment | chunk['created_time_comment'].isna()]
     
@@ -153,60 +153,3 @@ plt.close()
 f = Fitter(posts_por_hora, distributions=['expon', 'gamma', 'lognorm'])
 f.fit()
 f.summary()
-
-# Gera o documento LaTeX para o PDF (sem compilar)
-latex_content = r"""
-\documentclass[a4paper]{article}
-\usepackage{geometry}
-\usepackage{graphicx}
-\usepackage{caption}
-\usepackage{amsmath}
-\usepackage{amsfonts}
-\usepackage{amssymb}
-\usepackage{booktabs}
-\usepackage{hyperref}
-\usepackage{xcolor}
-\usepackage{titlesec}
-\usepackage{enumitem}
-\usepackage{fancyhdr}
-
-\geometry{margin=1in}
-
-\pagestyle{fancy}
-\fancyhf{}
-\fancyhead[C]{Análise Exploratória - Instagram 7 de Outubro 2018}
-\fancyfoot[C]{\thepage}
-
-\titleformat{\section}{\normalfont\Large\bfseries}{\thesection}{1em}{}
-\titleformat{\subsection}{\normalfont\large\bfseries}{\thesubsection}{1em}{}
-
-\begin{document}
-
-\begin{titlepage}
-    \centering
-    \vspace*{2cm}
-    {\Huge\bfseries Análise Exploratória de Publicações e Comentários no Instagram\\7 de Outubro 2018\par}
-    \vspace{1cm}
-    {\Large Israel - DoE Atividade 1\par}
-    \vspace{2cm}
-    {\large \today\par}
-    \vspace{2cm}
-\end{titlepage}
-
-\section{Histograma e Box Plot de Publicações por Hora}
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=\textwidth]{instagram_exploratory_analysis_subset.png}
-    \caption{Histograma, Box Plot e CDF de publicações por hora, com histograma de comentários (se disponíveis).}
-\end{figure}
-\clearpage
-
-\end{document}
-"""
-
-# Salva o documento LaTeX sem compilar
-with open("analise_exploratoria.tex", "w") as f:
-    f.write(latex_content)
-
-print("Documento LaTeX gerado: analise_exploratoria.tex")
-print("Compile manualmente com pdflatex ou online (e.g., Overleaf) para gerar o PDF.")

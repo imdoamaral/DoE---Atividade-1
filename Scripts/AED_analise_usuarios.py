@@ -92,88 +92,23 @@ if not comentarios_por_usuario.empty:
 
 # 6. Visualizações
 # Gráfico de Barras - Usuários mais ativos (publicações)
-plt.figure(figsize=(12, 9))  # Proporção 4:3
-plt.bar(top_10_publicacoes['media_owner_username'], top_10_publicacoes['short_code'].count(), color='blue')  # Correção: usar contagem direta
+plt.figure(figsize=(12, 9))
+plt.bar(top_10_publicacoes['media_owner_username'], top_10_publicacoes['short_code'], color='blue')
+plt.xticks(rotation=45, ha='right')  # Alinha à direita para compensar a rotação
 plt.title('Top 10 Usuários - Publicações (7 de Outubro de 2018)')
 plt.xlabel('Nome do Usuário')
 plt.ylabel('Número de Publicações')
-plt.xticks(rotation=45)
-plt.subplots_adjust(left=0.15, right=0.95, bottom=0.3, top=0.9)  # Ajusta margens
+plt.tight_layout()
 plt.savefig('top_usuarios_publicacoes.png')
 plt.close()
 
 # Gráfico de Barras - Usuários mais ativos (comentários recebidos)
-plt.figure(figsize=(12, 9))  # Proporção 4:3
+plt.figure(figsize=(12, 9))
 plt.bar(top_10_comentarios['media_owner_username'], top_10_comentarios['media_owner_id'].map(comentarios_por_usuario), color='purple')
+plt.xticks(rotation=45, ha='right')  # Alinha à direita para compensar a rotação
 plt.title('Top 10 Usuários - Comentários Recebidos (7 de Outubro de 2018)')
 plt.xlabel('Nome do Usuário')
 plt.ylabel('Número de Comentários Recebidos')
-plt.xticks(rotation=45)
-plt.subplots_adjust(left=0.15, right=0.95, bottom=0.3, top=0.9)  # Ajusta margens
+plt.tight_layout()
 plt.savefig('top_usuarios_comentarios.png')
 plt.close()
-
-# Gera o documento LaTeX para o PDF (sem compilar)
-latex_content = r"""
-\documentclass[a4paper]{article}
-\usepackage{geometry}
-\usepackage{graphicx}
-\usepackage{caption}
-\usepackage{amsmath}
-\usepackage{amsfonts}
-\usepackage{amssymb}
-\usepackage{booktabs}
-\usepackage{hyperref}
-\usepackage{xcolor}
-\usepackage{titlesec}
-\usepackage{enumitem}
-\usepackage{fancyhdr}
-
-\geometry{margin=1in}
-
-\pagestyle{fancy}
-\fancyhf{}
-\fancyhead[C]{Análise de Usuários - Instagram 7 de Outubro 2018}
-\fancyfoot[C]{\thepage}
-
-\titleformat{\section}{\normalfont\Large\bfseries}{\thesection}{1em}{}
-\titleformat{\subsection}{\normalfont\large\bfseries}{\thesubsection}{1em}{}
-
-\begin{document}
-
-\begin{titlepage}
-    \centering
-    \vspace*{2cm}
-    {\Huge\bfseries Análise de Usuários no Instagram\\7 de Outubro 2018\par}
-    \vspace{1cm}
-    {\Large Israel - DoE Atividade 1\par}
-    \vspace{2cm}
-    {\large \today\par}
-    \vspace{2cm}
-\end{titlepage}
-
-\section{Usuários Mais Ativos - Publicações}
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=\textwidth]{top_usuarios_publicacoes.png}
-    \caption{Top 10 usuários com mais publicações no dia 7 de outubro de 2018.}
-\end{figure}
-\clearpage
-
-\section{Usuários Mais Ativos - Comentários Recebidos}
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=\textwidth]{top_usuarios_comentarios.png}
-    \caption{Top 10 usuários com mais comentários recebidos no dia 7 de outubro de 2018.}
-\end{figure}
-\clearpage
-
-\end{document}
-"""
-
-# Salva o documento LaTeX sem compilar
-with open("analise_usuarios.tex", "w") as f:
-    f.write(latex_content)
-
-print("Documento LaTeX gerado: analise_usuarios.tex")
-print("Compile manualmente com pdflatex ou online (e.g., Overleaf) para gerar o PDF.")

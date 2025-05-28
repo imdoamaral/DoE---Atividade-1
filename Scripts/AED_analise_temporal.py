@@ -110,13 +110,14 @@ print(serie_comentarios_sazonal)
 # Gera os gráficos e salva como PNG temporariamente
 # Gráfico 1: Séries Temporais de Publicações
 plt.figure(figsize=(12, 9))  # Proporção 4:3
-plt.plot(serie_posts.index.strftime('%H:%M'), serie_posts, label='Publicações por Hora', color='blue', alpha=0.5)
-plt.plot(media_movel_posts.index.strftime('%H:%M'), media_movel_posts, label=f'Média Móvel ({janela_media_movel}h)', color='red')
+plt.plot(serie_posts.index.hour, serie_posts, label='Publicações por Hora', color='blue', alpha=0.5)
+plt.plot(media_movel_posts.index.hour, media_movel_posts, label=f'Média Móvel ({janela_media_movel}h)', color='red')
 plt.axhline(y=limiar_alta_posts, color='green', linestyle='--', label='Limiar Alta Atividade (Pub.)')
 plt.axhline(y=limiar_baixa_posts, color='orange', linestyle='--', label='Limiar Baixa Atividade (Pub.)')
 plt.title('Série Temporal de Publicações por Hora (7 de Outubro de 2018)')
 plt.xlabel('Hora do Dia')
 plt.ylabel('Número de Publicações')
+plt.xticks(range(0, 24, 1))  # Define rótulos de 0 a 23
 plt.legend()
 plt.tight_layout()
 plt.savefig('serie_temporal_publicacoes.png')
@@ -125,13 +126,14 @@ plt.close()
 # Gráfico 2: Séries Temporais de Comentários
 if not serie_comentarios.empty:
     plt.figure(figsize=(12, 9))  # Proporção 4:3
-    plt.plot(serie_comentarios.index.strftime('%H:%M'), serie_comentarios, label='Comentários por Hora', color='purple', alpha=0.5)
-    plt.plot(media_movel_comentarios.index.strftime('%H:%M'), media_movel_comentarios, label=f'Média Móvel ({janela_media_movel}h)', color='red')
+    plt.plot(serie_comentarios.index.hour, serie_comentarios, label='Comentários por Hora', color='purple', alpha=0.5)
+    plt.plot(media_movel_comentarios.index.hour, media_movel_comentarios, label=f'Média Móvel ({janela_media_movel}h)', color='red')
     plt.axhline(y=limiar_alta_comentarios, color='green', linestyle='--', label='Limiar Alta Atividade (Com.)')
     plt.axhline(y=limiar_baixa_comentarios, color='orange', linestyle='--', label='Limiar Baixa Atividade (Com.)')
     plt.title('Série Temporal de Comentários por Hora (7 de Outubro de 2018)')
     plt.xlabel('Hora do Dia')
     plt.ylabel('Número de Comentários')
+    plt.xticks(range(0, 24, 1))  # Define rótulos de 0 a 23
     plt.legend()
     plt.tight_layout()
     plt.savefig('serie_temporal_comentarios.png')
@@ -178,87 +180,3 @@ print(picos_posts.head(5))
 if not picos_comentarios.empty:
     print("\nPrincipais Picos de Comentários (Top 5):")
     print(picos_comentarios.head(5))
-
-# Gera o documento LaTeX para o PDF (sem compilar)
-latex_content = r"""
-\documentclass[a4paper]{article}
-\usepackage{geometry}
-\usepackage{graphicx}
-\usepackage{caption}
-\usepackage{amsmath}
-\usepackage{amsfonts}
-\usepackage{amssymb}
-\usepackage{booktabs}
-\usepackage{hyperref}
-\usepackage{xcolor}
-\usepackage{titlesec}
-\usepackage{enumitem}
-\usepackage{fancyhdr}
-
-\geometry{margin=1in}
-
-\pagestyle{fancy}
-\fancyhf{}
-\fancyhead[C]{Análise Temporal - Instagram 7 de Outubro 2018}
-\fancyfoot[C]{\thepage}
-
-\titleformat{\section}{\normalfont\Large\bfseries}{\thesection}{1em}{}
-\titleformat{\subsection}{\normalfont\large\bfseries}{\thesubsection}{1em}{}
-
-\begin{document}
-
-\begin{titlepage}
-    \centering
-    \vspace*{2cm}
-    {\Huge\bfseries Análise Temporal de Publicações e Comentários no Instagram\\7 de Outubro 2018\par}
-    \vspace{1cm}
-    {\Large Israel - DoE Atividade 1\par}
-    \vspace{2cm}
-    {\large \today\par}
-    \vspace{2cm}
-\end{titlepage}
-
-\section{Série Temporal de Publicações por Hora}
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=\textwidth]{serie_temporal_publicacoes.png}
-    \caption{Série temporal de publicações por hora, com média móvel de 24 horas e limiares de alta e baixa atividade.}
-\end{figure}
-\clearpage
-
-\section{Série Temporal de Comentários por Hora}
-"""
-if not serie_comentarios.empty:
-    latex_content += r"""
-    \begin{figure}[h]
-        \centering
-        \includegraphics[width=\textwidth]{serie_temporal_comentarios.png}
-        \caption{Série temporal de comentários por hora, com média móvel de 24 horas e limiares de alta e baixa atividade.}
-    \end{figure}
-    """
-else:
-    latex_content += r"""
-    \subsection*{Nota}
-    Não há dados suficientes para a série temporal de comentários.
-    """
-
-latex_content += r"""
-\clearpage
-
-\section{Sazonalidade - Média por Hora do Dia}
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=\textwidth]{sazonalidade_hora_dia.png}
-    \caption{Média de publicações e comentários por hora do dia, mostrando padrões sazonais.}
-\end{figure}
-\clearpage
-
-\end{document}
-"""
-
-# Salva o documento LaTeX sem compilar
-with open("analise_temporal.tex", "w") as f:
-    f.write(latex_content)
-
-print("Documento LaTeX gerado: analise_temporal.tex")
-print("Compile manualmente com pdflatex ou online (e.g., Overleaf) para gerar o PDF.")
