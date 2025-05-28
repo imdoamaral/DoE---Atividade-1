@@ -93,8 +93,12 @@ if not comentarios_por_usuario.empty:
 # 6. Visualizações
 # Gráfico de Barras - Usuários mais ativos (publicações)
 plt.figure(figsize=(12, 9))
-plt.bar(top_10_publicacoes['media_owner_username'], top_10_publicacoes['short_code'], color='blue')
-plt.xticks(rotation=45, ha='right')  # Alinha à direita para compensar a rotação
+bars = plt.bar(top_10_publicacoes['media_owner_username'], top_10_publicacoes['short_code'], color='blue')
+plt.yticks(range(0, 21, 2))  # Escala de 2 em 2, até 20
+for bar in bars:  # Rótulos no topo das barras
+    yval = bar.get_height()
+    plt.text(bar.get_x() + bar.get_width()/2, yval + 0.5, int(yval), ha='center', va='bottom')
+plt.xticks(rotation=45, ha='right')
 plt.title('Top 10 Usuários - Publicações (7 de Outubro de 2018)')
 plt.xlabel('Nome do Usuário')
 plt.ylabel('Número de Publicações')
@@ -104,8 +108,11 @@ plt.close()
 
 # Gráfico de Barras - Usuários mais ativos (comentários recebidos)
 plt.figure(figsize=(12, 9))
-plt.bar(top_10_comentarios['media_owner_username'], top_10_comentarios['media_owner_id'].map(comentarios_por_usuario), color='purple')
-plt.xticks(rotation=45, ha='right')  # Alinha à direita para compensar a rotação
+bars = plt.bar(top_10_comentarios['media_owner_username'], top_10_comentarios['media_owner_id'].map(comentarios_por_usuario), color='purple')
+for bar in bars:  # Rótulos no topo das barras
+    yval = bar.get_height()
+    plt.text(bar.get_x() + bar.get_width()/2, yval + 500, f'{int(yval):,}', ha='center', va='bottom')  # Formato com vírgula
+plt.xticks(rotation=45, ha='right')
 plt.title('Top 10 Usuários - Comentários Recebidos (7 de Outubro de 2018)')
 plt.xlabel('Nome do Usuário')
 plt.ylabel('Número de Comentários Recebidos')
